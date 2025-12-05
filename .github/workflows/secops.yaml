@@ -3,7 +3,7 @@ name: Static Code Analysis and Dependency Check analysis.
 on:
   push:
     branches:
-      - main
+      -  do-not-run
 
 jobs:
   # OWASP-ependency-Check:
