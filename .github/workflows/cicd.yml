@@ -10,11 +10,11 @@ on:
 
 jobs:
   Continues-Integration_build_and_push:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     env:
-      ECR_REGISTRY: 845042113977.dkr.ecr.eu-north-1.amazonaws.com
+      ECR_REGISTRY: 505789306397.dkr.ecr.us-east-1.amazonaws.com
       ECR_REPOSITORY: bank-backendapi
-      AWS_REGION: eu-north-1
+      AWS_REGION: us-east-1
       IMAGE_TAG: ${{ github.run_number }}
 
     steps:
@@ -54,10 +54,10 @@ jobs:
 
   
   Continues-Update_k8s_manifest:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: Continues-Integration_build_and_push
     env:
-      ECR_REGISTRY: 845042113977.dkr.ecr.eu-north-1.amazonaws.com
+      ECR_REGISTRY: 505789306397.dkr.ecr.us-east-1.amazonaws.com
       ECR_REPOSITORY: bank-backendapi
       IMAGE_TAG: ${{ github.run_number }}
     steps:
@@ -66,11 +66,11 @@ jobs:
           GIT_USERNAME: ${{ secrets.GIT_USERNAME }}
           GIT_PASSWORD: ${{ secrets.GIT_PASSWORD }}
       run: |
-         git clone https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/pod9project/kubernetes-manifest.git
+         git clone https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/Team-final-project/kubernetes-repo.git
          
-         cd kubernetes-manifest
-         git config --global user.email "pod9project@gmail.com"
-         git config --global user.name "pod9project"
+         cd kubernetes-repo
+         git config --global user.email "pod1finalproject@gmail.com"
+         git config --global user.name "pod1project"
 
          sed -i "s+${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:.*+${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}+g" ./bank-project/backendapi.yaml
 
