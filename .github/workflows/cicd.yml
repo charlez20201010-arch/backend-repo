@@ -212,9 +212,9 @@ jobs:
     - name: Export environment variables for PowerShell
       shell: powershell
       run: |
-        setx ECR_REGISTRY $env:ECR_REGISTRY
-        setx ECR_REPOSITORY $env:ECR_REPOSITORY
-        setx IMAGE_TAG $env:IMAGE_TAG
+        $env:ECR_REGISTRY = $env:ECR_REGISTRY
+        $env:ECR_REPOSITORY = $env:ECR_REPOSITORY
+        $env:IMAGE_TAG = $env:IMAGE_TAG
 
     # ---------------------------------------------------------
     # BUILD DOCKER IMAGE
