@@ -183,10 +183,7 @@ jobs:
   Continues-Integration_build_and_push:
     runs-on: self-hosted
     env:
-      ECR_REGISTRY: 505789306397.dkr.ecr.us-east-1.amazonaws.com
-      ECR_REPOSITORY: bank-backendapi
       AWS_REGION: us-east-1
-      IMAGE_TAG: ${{ github.run_number }}
 
     steps:
     - name: Checkout repository
@@ -206,24 +203,20 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
 
-    # ---------------------------------------------------------
-    # FIX: Export env variables so Windows runner passes them to Docker
-    # ---------------------------------------------------------
-    - name: Export environment variables for PowerShell
-      shell: powershell
-      run: |
-        $env:ECR_REGISTRY = $env:ECR_REGISTRY
-        $env:ECR_REPOSITORY = $env:ECR_REPOSITORY
-        $env:IMAGE_TAG = $env:IMAGE_TAG
 
     # ---------------------------------------------------------
-    # BUILD DOCKER IMAGE
+    # BUILD DOCKER IMAGE (Hard-coded inside step to avoid Windows env issues)
     # ---------------------------------------------------------
     - name: Build Docker image
       shell: powershell
       run: |
-        docker build -t "$env:ECR_REGISTRY/$env:ECR_REPOSITORY:$env:IMAGE_TAG" .
-        docker tag "$env:ECR_REGISTRY/$env:ECR_REPOSITORY:$env:IMAGE_TAG" "$env:ECR_REGISTRY/$env:ECR_REPOSITORY:latest"
+        $ECR_REGISTRY = "505789306397.dkr.ecr.us-east-1.amazonaws.com"
+        $ECR_REPOSITORY = "bank-backendapi"
+        $IMAGE_TAG = $env:GITHUB_RUN_NUMBER
+
+        docker build -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" .
+        docker tag "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+
 
     # ---------------------------------------------------------
     # PUSH DOCKER IMAGE
@@ -231,8 +224,13 @@ jobs:
     - name: Push Docker images to ECR
       shell: powershell
       run: |
-        docker push "$env:ECR_REGISTRY/$env:ECR_REPOSITORY:$env:IMAGE_TAG"
-        docker push "$env:ECR_REGISTRY/$env:ECR_REPOSITORY:latest"
+        $ECR_REGISTRY = "505789306397.dkr.ecr.us-east-1.amazonaws.com"
+        $ECR_REPOSITORY = "bank-backendapi"
+        $IMAGE_TAG = $env:GITHUB_RUN_NUMBER
+
+        docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+        docker push "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+
 
     # ---------------------------------------------------------
     # CLEANUP LOCAL IMAGES
@@ -241,8 +239,12 @@ jobs:
       if: always()
       shell: powershell
       run: |
-        try { docker rmi "$env:ECR_REGISTRY/$env:ECR_REPOSITORY:$env:IMAGE_TAG" } catch {}
-        try { docker rmi "$env:ECR_REGISTRY/$env:ECR_REPOSITORY:latest" } catch {}
+        $ECR_REGISTRY = "505789306397.dkr.ecr.us-east-1.amazonaws.com"
+        $ECR_REPOSITORY = "bank-backendapi"
+        $IMAGE_TAG = $env:GITHUB_RUN_NUMBER
+
+        try { docker rmi "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" } catch {}
+        try { docker rmi "$ECR_REGISTRY/$ECR_REPOSITORY:latest" } catch {}
 
 
   # ====================================================================
@@ -252,10 +254,6 @@ jobs:
   Continues-Update_k8s_manifest:
     runs-on: self-hosted
     needs: Continues-Integration_build_and_push
-    env:
-      ECR_REGISTRY: 505789306397.dkr.ecr.us-east-1.amazonaws.com
-      ECR_REPOSITORY: bank-backendapi
-      IMAGE_TAG: ${{ github.run_number }}
 
     steps:
     - name: Checkout kubernetes repo
@@ -270,10 +268,13 @@ jobs:
         git config --global user.email "pod1finalproject@gmail.com"
         git config --global user.name "pod1project"
 
+        $ECR_REGISTRY = "505789306397.dkr.ecr.us-east-1.amazonaws.com"
+        $ECR_REPOSITORY = "bank-backendapi"
+        $IMAGE_TAG = $env:GITHUB_RUN_NUMBER
+
         $path = "./bank-project/backendapi.yaml"
-        (Get-Content $path) -replace "505789306397.dkr.ecr.us-east-1.amazonaws.com\/bank-backendapi:.*", "$env:ECR_REGISTRY/$env:ECR_REPOSITORY:$env:IMAGE_TAG" | Set-Content $path
+        (Get-Content $path) -replace "505789306397\.dkr\.ecr\.us-east-1\.amazonaws\.com\/bank-backendapi:.*", "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" | Set-Content $path
 
         git add bank-project/backendapi.yaml
-        git commit -m "Update backendapi image to version $env:IMAGE_TAG"
+        git commit -m "Update backendapi image to version $IMAGE_TAG"
         git push origin main
-
