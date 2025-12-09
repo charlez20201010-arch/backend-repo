@@ -1,14 +1,98 @@
+# name: Bank Backend Pipeline
+
+# on:
+#   push:
+#     branches:
+#       - main
+#   # pull_request:
+#   #   branches:
+#   #     - cicd
+
+# jobs:
+#   Continues-Integration_build_and_push:
+#     runs-on: self-hosted
+#     env:
+#       ECR_REGISTRY: 505789306397.dkr.ecr.us-east-1.amazonaws.com
+#       ECR_REPOSITORY: bank-backendapi
+#       AWS_REGION: us-east-1
+#       IMAGE_TAG: ${{ github.run_number }}
+
+#     steps:
+#     - name: Checkout repository
+#       uses: actions/checkout@v4
+
+#     - name: Set up Docker Buildx
+#       uses: docker/setup-buildx-action@v3
+
+#     - name: Configure AWS credentials
+#       uses: aws-actions/configure-aws-credentials@v4
+#       with:
+#         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#         aws-region: ${{ env.AWS_REGION }}
+
+#     - name: Log in to Amazon ECR
+#       id: login-ecr
+#       uses: aws-actions/amazon-ecr-login@v2
+
+#     - name: Build Docker image
+#       shell: powershell
+#       run: |
+#         docker build -t ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} .
+#         docker tag ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+  
+#     - name: Push Docker images to ECR
+#       run: |
+#         docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+#         docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+
+#     - name: Clean up Docker images locally
+#       if: always()
+#       shell: powershell
+#       run: |
+#         try { docker rmi "$env:ECR_REGISTRY/$env:ECR_REPOSITORY:$env:IMAGE_TAG" } catch {}
+#         try { docker rmi "$env:ECR_REGISTRY/$env:ECR_REPOSITORY:latest" } catch {}
+
+  
+#   Continues-Update_k8s_manifest:
+#     runs-on: self-hosted
+#     needs: Continues-Integration_build_and_push
+#     env:
+#       ECR_REGISTRY: 505789306397.dkr.ecr.us-east-1.amazonaws.com
+#       ECR_REPOSITORY: bank-backendapi
+#       IMAGE_TAG: ${{ github.run_number }}
+#     steps:
+#     - name: Checkout repository
+#       env:
+#           GIT_USERNAME: ${{ secrets.GIT_USERNAME }}
+#           GIT_PASSWORD: ${{ secrets.GIT_PASSWORD }}
+#       run: |
+#          git clone https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/Team-final-project/kubernetes-repo.git
+         
+#          cd kubernetes-repo
+#          git config --global user.email "pod1finalproject@gmail.com"
+#          git config --global user.name "pod1project"
+
+#          sed -i "s+${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:.*+${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}+g" ./bank-project/backendapi.yaml
+
+#          cat ./bank-project/backendapi.yaml | grep -q "${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}"
+
+#          git add bank-project/backendapi.yaml
+#          git commit -m "Update backendapi image to version ${{ env.IMAGE_TAG }}"
+#          git push origin main
+        
+
+
+
 name: Bank Backend Pipeline
 
 on:
   push:
     branches:
       - main
-  # pull_request:
-  #   branches:
-  #     - cicd
 
 jobs:
+
   Continues-Integration_build_and_push:
     runs-on: self-hosted
     env:
@@ -35,25 +119,29 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
 
+    # 🟦 FIXED — Windows compatible Docker build
     - name: Build Docker image
-      working-directory: ./pod1-backend-repo
+      shell: powershell
       run: |
-        docker build -t ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} .
-        docker tag ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
-  
-    - name: Push Docker images to ECR
-      run: |
-        docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
-        docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+        docker build -t $env:ECR_REGISTRY/$env:ECR_REPOSITORY:$env:IMAGE_TAG .
+        docker tag $env:ECR_REGISTRY/$env:ECR_REPOSITORY:$env:IMAGE_TAG $env:ECR_REGISTRY/$env:ECR_REPOSITORY:latest
 
+    # 🟦 FIXED — Windows compatible Docker push
+    - name: Push Docker images to ECR
+      shell: powershell
+      run: |
+        docker push $env:ECR_REGISTRY/$env:ECR_REPOSITORY:$env:IMAGE_TAG
+        docker push $env:ECR_REGISTRY/$env:ECR_REPOSITORY:latest
+
+    # 🟦 FIXED — Windows compatible cleanup
     - name: Clean up Docker images locally
       if: always()
-      shell: pwsh
+      shell: powershell
       run: |
         try { docker rmi "$env:ECR_REGISTRY/$env:ECR_REPOSITORY:$env:IMAGE_TAG" } catch {}
         try { docker rmi "$env:ECR_REGISTRY/$env:ECR_REPOSITORY:latest" } catch {}
 
-  
+
   Continues-Update_k8s_manifest:
     runs-on: self-hosted
     needs: Continues-Integration_build_and_push
@@ -61,23 +149,23 @@ jobs:
       ECR_REGISTRY: 505789306397.dkr.ecr.us-east-1.amazonaws.com
       ECR_REPOSITORY: bank-backendapi
       IMAGE_TAG: ${{ github.run_number }}
+
     steps:
-    - name: Checkout repository
+    - name: Checkout kubernetes repo
+      shell: powershell
       env:
-          GIT_USERNAME: ${{ secrets.GIT_USERNAME }}
-          GIT_PASSWORD: ${{ secrets.GIT_PASSWORD }}
+        GIT_USERNAME: ${{ secrets.GIT_USERNAME }}
+        GIT_PASSWORD: ${{ secrets.GIT_PASSWORD }}
       run: |
-         git clone https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/Team-final-project/kubernetes-repo.git
-         
-         cd kubernetes-repo
-         git config --global user.email "pod1finalproject@gmail.com"
-         git config --global user.name "pod1project"
+        git clone https://${env:GIT_USERNAME}:${env:GIT_PASSWORD}@github.com/Team-final-project/kubernetes-repo.git
 
-         sed -i "s+${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:.*+${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}+g" ./bank-project/backendapi.yaml
+        Set-Location kubernetes-repo
+        git config --global user.email "pod1finalproject@gmail.com"
+        git config --global user.name "pod1project"
 
-         cat ./bank-project/backendapi.yaml | grep -q "${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}"
+        # 🟦 FIXED — Windows-compatible string replacement
+        (Get-Content ./bank-project/backendapi.yaml) -replace "505789306397.dkr.ecr.us-east-1.amazonaws.com/bank-backendapi:.*", "$env:ECR_REGISTRY/$env:ECR_REPOSITORY:$env:IMAGE_TAG" | Set-Content ./bank-project/backendapi.yaml
 
-         git add bank-project/backendapi.yaml
-         git commit -m "Update backendapi image to version ${{ env.IMAGE_TAG }}"
-         git push origin main
-        
+        git add bank-project/backendapi.yaml
+        git commit -m "Update backendapi image to version $env:IMAGE_TAG"
+        git push origin main
