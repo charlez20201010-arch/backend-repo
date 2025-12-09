@@ -170,7 +170,6 @@
 #         git commit -m "Update backendapi image to version $env:IMAGE_TAG"
 #         git push origin main
 
-
 name: Bank Backend Pipeline
 
 on:
@@ -197,7 +196,7 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ env.AWS_REGION }}
+        aws-region: us-east-1
 
     - name: Log in to Amazon ECR
       id: login-ecr
@@ -205,35 +204,35 @@ jobs:
 
 
     # ---------------------------------------------------------
-    # BUILD DOCKER IMAGE (Hard-coded inside step to avoid Windows env issues)
+    # BUILD DOCKER IMAGE (FINAL FIX)
     # ---------------------------------------------------------
     - name: Build Docker image
       shell: powershell
       run: |
         $ECR_REGISTRY = "505789306397.dkr.ecr.us-east-1.amazonaws.com"
         $ECR_REPOSITORY = "bank-backendapi"
-        $IMAGE_TAG = $env:GITHUB_RUN_NUMBER
+        $IMAGE_TAG = "${{ github.run_number }}"
 
-        docker build -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" .
-        docker tag "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+        docker build -t "$($ECR_REGISTRY)/$($ECR_REPOSITORY):$($IMAGE_TAG)" .
+        docker tag "$($ECR_REGISTRY)/$($ECR_REPOSITORY):$($IMAGE_TAG)" "$($ECR_REGISTRY)/$($ECR_REPOSITORY):latest"
 
 
     # ---------------------------------------------------------
-    # PUSH DOCKER IMAGE
+    # PUSH DOCKER IMAGE (FINAL FIX)
     # ---------------------------------------------------------
     - name: Push Docker images to ECR
       shell: powershell
       run: |
         $ECR_REGISTRY = "505789306397.dkr.ecr.us-east-1.amazonaws.com"
         $ECR_REPOSITORY = "bank-backendapi"
-        $IMAGE_TAG = $env:GITHUB_RUN_NUMBER
+        $IMAGE_TAG = "${{ github.run_number }}"
 
-        docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
-        docker push "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+        docker push "$($ECR_REGISTRY)/$($ECR_REPOSITORY):$($IMAGE_TAG)"
+        docker push "$($ECR_REGISTRY)/$($ECR_REPOSITORY):latest"
 
 
     # ---------------------------------------------------------
-    # CLEANUP LOCAL IMAGES
+    # CLEANUP LOCAL IMAGES (FINAL FIX)
     # ---------------------------------------------------------
     - name: Clean up Docker images locally
       if: always()
@@ -241,10 +240,10 @@ jobs:
       run: |
         $ECR_REGISTRY = "505789306397.dkr.ecr.us-east-1.amazonaws.com"
         $ECR_REPOSITORY = "bank-backendapi"
-        $IMAGE_TAG = $env:GITHUB_RUN_NUMBER
+        $IMAGE_TAG = "${{ github.run_number }}"
 
-        try { docker rmi "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" } catch {}
-        try { docker rmi "$ECR_REGISTRY/$ECR_REPOSITORY:latest" } catch {}
+        try { docker rmi "$($ECR_REGISTRY)/$($ECR_REPOSITORY):$($IMAGE_TAG)" } catch {}
+        try { docker rmi "$($ECR_REGISTRY)/$($ECR_REPOSITORY):latest" } catch {}
 
 
   # ====================================================================
@@ -270,11 +269,12 @@ jobs:
 
         $ECR_REGISTRY = "505789306397.dkr.ecr.us-east-1.amazonaws.com"
         $ECR_REPOSITORY = "bank-backendapi"
-        $IMAGE_TAG = $env:GITHUB_RUN_NUMBER
+        $IMAGE_TAG = "${{ github.run_number }}"
 
         $path = "./bank-project/backendapi.yaml"
-        (Get-Content $path) -replace "505789306397\.dkr\.ecr\.us-east-1\.amazonaws\.com\/bank-backendapi:.*", "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" | Set-Content $path
+        (Get-Content $path) -replace "505789306397\.dkr\.ecr\.us-east-1\.amazonaws\.com\/bank-backendapi:.*", "$($ECR_REGISTRY)/$($ECR_REPOSITORY):$($IMAGE_TAG)" | Set-Content $path
 
         git add bank-project/backendapi.yaml
         git commit -m "Update backendapi image to version $IMAGE_TAG"
         git push origin main
+
