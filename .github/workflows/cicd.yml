@@ -171,7 +171,6 @@
 #         git push origin main
 
 
-
 name: Bank Backend Pipeline
 
 on:
@@ -207,18 +206,37 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
 
+    # ---------------------------------------------------------
+    # FIX: Export env variables so Windows runner passes them to Docker
+    # ---------------------------------------------------------
+    - name: Export environment variables for PowerShell
+      shell: powershell
+      run: |
+        setx ECR_REGISTRY $env:ECR_REGISTRY
+        setx ECR_REPOSITORY $env:ECR_REPOSITORY
+        setx IMAGE_TAG $env:IMAGE_TAG
+
+    # ---------------------------------------------------------
+    # BUILD DOCKER IMAGE
+    # ---------------------------------------------------------
     - name: Build Docker image
       shell: powershell
       run: |
         docker build -t "$env:ECR_REGISTRY/$env:ECR_REPOSITORY:$env:IMAGE_TAG" .
         docker tag "$env:ECR_REGISTRY/$env:ECR_REPOSITORY:$env:IMAGE_TAG" "$env:ECR_REGISTRY/$env:ECR_REPOSITORY:latest"
 
+    # ---------------------------------------------------------
+    # PUSH DOCKER IMAGE
+    # ---------------------------------------------------------
     - name: Push Docker images to ECR
       shell: powershell
       run: |
         docker push "$env:ECR_REGISTRY/$env:ECR_REPOSITORY:$env:IMAGE_TAG"
         docker push "$env:ECR_REGISTRY/$env:ECR_REPOSITORY:latest"
 
+    # ---------------------------------------------------------
+    # CLEANUP LOCAL IMAGES
+    # ---------------------------------------------------------
     - name: Clean up Docker images locally
       if: always()
       shell: powershell
@@ -226,6 +244,10 @@ jobs:
         try { docker rmi "$env:ECR_REGISTRY/$env:ECR_REPOSITORY:$env:IMAGE_TAG" } catch {}
         try { docker rmi "$env:ECR_REGISTRY/$env:ECR_REPOSITORY:latest" } catch {}
 
+
+  # ====================================================================
+  # UPDATE K8S MANIFEST WITH NEW IMAGE TAG
+  # ====================================================================
 
   Continues-Update_k8s_manifest:
     runs-on: self-hosted
@@ -243,6 +265,7 @@ jobs:
         GIT_PASSWORD: ${{ secrets.GIT_PASSWORD }}
       run: |
         git clone https://${env:GIT_USERNAME}:${env:GIT_PASSWORD}@github.com/Team-final-project/kubernetes-repo.git
+
         Set-Location kubernetes-repo
         git config --global user.email "pod1finalproject@gmail.com"
         git config --global user.name "pod1project"
@@ -253,3 +276,4 @@ jobs:
         git add bank-project/backendapi.yaml
         git commit -m "Update backendapi image to version $env:IMAGE_TAG"
         git push origin main
+
