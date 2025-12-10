@@ -215,12 +215,12 @@ jobs:
         docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
         docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
 
-    - name: Clean up Docker images locally
-      if: always()
-      shell: powershell
-      run: |
-        try { docker rmi "$env:ECR_REGISTRY/$env:ECR_REPOSITORY:$env:IMAGE_TAG" } catch {}
-        try { docker rmi "$env:ECR_REGISTRY/$env:ECR_REPOSITORY:latest" } catch {}
+    # - name: Clean up Docker images locally
+    #   if: always()
+    #   shell: powershell
+    #   run: |
+    #     try { docker rmi "$env:ECR_REGISTRY/$env:ECR_REPOSITORY:$env:IMAGE_TAG" } catch {}
+    #     try { docker rmi "$env:ECR_REGISTRY/$env:ECR_REPOSITORY:latest" } catch {}
 
 
 
@@ -254,3 +254,4 @@ jobs:
         git add bank-project/backendapi.yaml
         git commit -m "Update backendapi image to version ${{ env.IMAGE_TAG }}"
         git push origin main
+# 
