@@ -179,13 +179,17 @@ on:
 
 jobs:
 
-  Continues-Integration_build_and_push:
+  build_and_push:
     runs-on: self-hosted
     env:
+      ECR_REGISTRY: 505789306397.dkr.ecr.us-east-1.amazonaws.com
+      ECR_REPOSITORY: bank-backendapi
       AWS_REGION: us-east-1
+      IMAGE_TAG: ${{ github.run_number }}
 
     steps:
-    - name: Checkout repository
+
+    - name: Checkout source repository
       uses: actions/checkout@v4
 
     - name: Set up Docker Buildx
@@ -196,85 +200,54 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-1
+        aws-region: ${{ env.AWS_REGION }}
 
-    - name: Log in to Amazon ECR
-      id: login-ecr
+    - name: Login to Amazon ECR
       uses: aws-actions/amazon-ecr-login@v2
 
-
-    # ---------------------------------------------------------
-    # BUILD DOCKER IMAGE (FINAL FIX)
-    # ---------------------------------------------------------
     - name: Build Docker image
-      shell: powershell
       run: |
-        $ECR_REGISTRY = "505789306397.dkr.ecr.us-east-1.amazonaws.com"
-        $ECR_REPOSITORY = "bank-backendapi"
-        $IMAGE_TAG = "${{ github.run_number }}"
+        docker build -t ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} .
+        docker tag ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
 
-        docker build -t "$($ECR_REGISTRY)/$($ECR_REPOSITORY):$($IMAGE_TAG)" .
-        docker tag "$($ECR_REGISTRY)/$($ECR_REPOSITORY):$($IMAGE_TAG)" "$($ECR_REGISTRY)/$($ECR_REPOSITORY):latest"
-
-
-    # ---------------------------------------------------------
-    # PUSH DOCKER IMAGE (FINAL FIX)
-    # ---------------------------------------------------------
     - name: Push Docker images to ECR
-      shell: powershell
       run: |
-        $ECR_REGISTRY = "505789306397.dkr.ecr.us-east-1.amazonaws.com"
-        $ECR_REPOSITORY = "bank-backendapi"
-        $IMAGE_TAG = "${{ github.run_number }}"
+        docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+        docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
 
-        docker push "$($ECR_REGISTRY)/$($ECR_REPOSITORY):$($IMAGE_TAG)"
-        docker push "$($ECR_REGISTRY)/$($ECR_REPOSITORY):latest"
-
-
-    # ---------------------------------------------------------
-    # CLEANUP LOCAL IMAGES (FINAL FIX)
-    # ---------------------------------------------------------
     - name: Clean up Docker images locally
       if: always()
-      shell: powershell
       run: |
-        $ECR_REGISTRY = "505789306397.dkr.ecr.us-east-1.amazonaws.com"
-        $ECR_REPOSITORY = "bank-backendapi"
-        $IMAGE_TAG = "${{ github.run_number }}"
-
-        try { docker rmi "$($ECR_REGISTRY)/$($ECR_REPOSITORY):$($IMAGE_TAG)" } catch {}
-        try { docker rmi "$($ECR_REGISTRY)/$($ECR_REPOSITORY):latest" } catch {}
+        docker rmi ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} || true
+        docker rmi ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest || true
 
 
-  # ====================================================================
-  # UPDATE K8S MANIFEST WITH NEW IMAGE TAG
-  # ====================================================================
-
-  Continues-Update_k8s_manifest:
+  update_k8s_manifest:
     runs-on: self-hosted
-    needs: Continues-Integration_build_and_push
+    needs: build_and_push
+    env:
+      ECR_REGISTRY: 505789306397.dkr.ecr.us-east-1.amazonaws.com
+      ECR_REPOSITORY: bank-backendapi
+      IMAGE_TAG: ${{ github.run_number }}
 
     steps:
-    - name: Checkout kubernetes repo
-      shell: powershell
-      env:
-        GIT_USERNAME: ${{ secrets.GIT_USERNAME }}
-        GIT_PASSWORD: ${{ secrets.GIT_PASSWORD }}
-      run: |
-        git clone https://${env:GIT_USERNAME}:${env:GIT_PASSWORD}@github.com/Team-final-project/kubernetes-repo.git
 
-        Set-Location kubernetes-repo
+    - name: Clone Kubernetes repo
+      run: |
+        git clone https://${{ secrets.GIT_USERNAME }}:${{ secrets.GIT_PASSWORD }}@github.com/Team-final-project/kubernetes-repo.git
+        cd kubernetes-repo
         git config --global user.email "pod1finalproject@gmail.com"
         git config --global user.name "pod1project"
 
-        $ECR_REGISTRY = "505789306397.dkr.ecr.us-east-1.amazonaws.com"
-        $ECR_REPOSITORY = "bank-backendapi"
-        $IMAGE_TAG = "${{ github.run_number }}"
+    - name: Update backend image tag in manifest
+      run: |
+        cd kubernetes-repo
+        sed -i "s#${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:.*#${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}#g" bank-project/backendapi.yaml
+        cat bank-project/backendapi.yaml
 
-        $path = "./bank-project/backendapi.yaml"
-        (Get-Content $path) -replace "505789306397\.dkr\.ecr\.us-east-1\.amazonaws\.com\/bank-backendapi:.*", "$($ECR_REGISTRY)/$($ECR_REPOSITORY):$($IMAGE_TAG)" | Set-Content $path
-
+    - name: Commit and push changes
+      run: |
+        cd kubernetes-repo
         git add bank-project/backendapi.yaml
-        git commit -m "Update backendapi image to version $IMAGE_TAG"
+        git commit -m "Update backendapi image to version ${{ env.IMAGE_TAG }}"
         git push origin main
-# 
