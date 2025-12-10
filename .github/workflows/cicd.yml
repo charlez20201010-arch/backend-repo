@@ -217,9 +217,12 @@ jobs:
 
     - name: Clean up Docker images locally
       if: always()
+      shell: powershell
       run: |
-        docker rmi ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} || true
-        docker rmi ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest || true
+        try { docker rmi "$env:ECR_REGISTRY/$env:ECR_REPOSITORY:$env:IMAGE_TAG" } catch {}
+        try { docker rmi "$env:ECR_REGISTRY/$env:ECR_REPOSITORY:latest" } catch {}
+
+
 
 
   update_k8s_manifest:
