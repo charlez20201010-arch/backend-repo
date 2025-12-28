@@ -180,9 +180,9 @@ on:
 jobs:
 
   build_and_push:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     env:
-      ECR_REGISTRY: 505789306397.dkr.ecr.us-east-1.amazonaws.com
+      ECR_REGISTRY: 743192492758.dkr.ecr.us-east-1.amazonaws.com
       ECR_REPOSITORY: bank-backendapi
       AWS_REGION: us-east-1
       IMAGE_TAG: ${{ github.run_number }}
@@ -226,21 +226,21 @@ jobs:
 
 
   update_k8s_manifest:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs: build_and_push
     env:
-      ECR_REGISTRY: 505789306397.dkr.ecr.us-east-1.amazonaws.com
+      ECR_REGISTRY: 743192492758.dkr.ecr.us-east-1.amazonaws.com
       ECR_REPOSITORY: bank-backendapi
       IMAGE_TAG: ${{ github.run_number }}
 
     steps:
 
-    - name: Clone Kubernetes repo
+    - name: Clone Kubernetes-repo
       run: |
-        git clone https://${{ secrets.GIT_USERNAME }}:${{ secrets.GIT_PASSWORD }}@github.com/Team-final-project/kubernetes-repo.git
+        git clone https://${{ secrets.GIT_USERNAME }}:${{ secrets.GIT_PASSWORD }}@github.com/charlez20201010-arch/kubernetes-repo.git
         cd kubernetes-repo
-        git config --global user.email "pod1finalproject@gmail.com"
-        git config --global user.name "pod1project"
+        git config --global user.email "charlez20201010@gmail.com"
+        git config --global user.name "charlez20201010-arch"
 
     - name: Update backend image tag in manifest
       run: |
